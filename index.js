@@ -5,14 +5,15 @@ const contextMenus = require('cytoscape-context-menus')
 const clipboard = require('cytoscape-clipboard')
 const undoRedo = require('cytoscape-undo-redo')
 
-
 cytoscape.use(edgehandles)
 clipboard(cytoscape, jquery)
 undoRedo(cytoscape)
 contextMenus(cytoscape, jquery)
 
+let container = document.getElementById('cy')
+
 let cy = cytoscape({
-    container: document.getElementById('cy'),
+    container,
 
     elements: [ // list of graph elements to start with
         { data: { id: 'n0', state: 1} },
@@ -90,8 +91,7 @@ let cy = cytoscape({
         },
         {
             selector: '.eh-hover',
-            style: {
-            }
+            style: {}
         },
         {
             selector: '.eh-source',
@@ -121,8 +121,27 @@ let eh = cy.edgehandles({
 
 })
 
+// TODO: Get rid of global variable mousePos
+let mousePos = {}
+
+cy.on('tapdrag', (event) => {
+    mousePos = event.position
+})
+
 let ur = cy.undoRedo({ undoableDrag: true })
-let cb = cy.clipboard({})
+let cb = cy.clipboard({
+    afterPaste: (eles) => {
+        // console.log('hi')
+        let elePos = eles.position() 
+        eles.shift({
+            x: mousePos.x - elePos.x,
+            y: mousePos.y - elePos.y
+        })
+    }
+})
+
+
+// cy.on('paste', (event) => console.log(event) )
 
 document.addEventListener('keydown', (event) => {
     if (event.ctrlKey && event.target.nodeName == 'BODY') {
@@ -131,6 +150,7 @@ document.addEventListener('keydown', (event) => {
         } 
         else if (event.which === 86) { // CTRL + V = paste
             cb.paste()
+            
         } 
         else if (event.which === 65) { // CTRL + A = select all
             cy.elements().select() 
@@ -147,14 +167,6 @@ document.addEventListener('keydown', (event) => {
             cy.remove(cy.$(':selected'))
     }
 })
-
-// cy.on('cxttap', (event) => {
-//     cy.add({
-//         group: 'nodes',
-//         position: event.position,
-//         data: { state: 0 }
-//     })
-// })
 
 var layoutOptions = {
     name: 'cose',
@@ -184,7 +196,7 @@ var layoutOptions = {
 
     // The layout animates only after this many milliseconds for animate:true
     // (prevents flashing on fast runs)
-    animationThreshold: 250,
+    animationThreshold: undefined,
 
     // Number of iterations between consecutive screen positions update
     // (0 -> only updated on the end)
@@ -194,7 +206,7 @@ var layoutOptions = {
     fit: true,
 
     // Padding on fit
-    padding: 30,
+    padding: 200,
 
     // Constrain layout bounds; { x1, y1, x2, y2 } or { x1, y1, w, h }
     boundingBox: undefined,
@@ -378,15 +390,14 @@ function runAutomataStep() {
     }
 }
 
-
 let counter = 0;
 function loop() {
     requestAnimationFrame(loop)
     counter++;
 
     if (counter % 10 === 0) {
-        runAutomataStep()
         setColors()
+        runAutomataStep()
     }
 
 }
